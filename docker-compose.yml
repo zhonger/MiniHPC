@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  sake:
+    image: zhonger/minihpc-base
+    container_name: sake
+    stdin_open: true
+    tty: true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+      - ./root/data:/root/data
+      - ./users:/home
+    # ports:
+    #   - 6822:22
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=hpc
+      - MYSQL_PASSWORD=hpc
+    restart: always
+    hostname: sake
+    links:
+      - db
+      - slapd
+  db:
+    image: mariadb:latest
+    container_name: db
+    restart: always
+    hostname: db
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+      - ./db_init:/docker-entrypoint-initdb.d
+    environment:
+      - MYSQL_ROOT_PASSWORD=19950710li
+      - MYSQL_USER=hpc
+      - MYSQL_PASSWORD=hpc
+    security_opt:
+      - seccomp=unconfined
+    command: mysqld --innodb-buffer-pool-size=256M --innodb_log_file_size=64M --innodb_lock_wait_timeout=900
+  adminer:
+    image: adminer
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+    ports:
+      - 6881:8080 
+  slapd:
+    image: osixia/openldap:latest
+    container_name: slapd
+    restart: always
+    hostname: ldap.lisz.top
+    environment:
+      LDAP_ORGANISATION: "LEP"
+      LDAP_DOMAIN: "lisz.top"
+      LDAP_ADMIN_PASSWORD: "19950710li"
+      LDAP_READONLY_USER: "True"
+      LDAP_READONLY_USER_USERNAME: "readonly"
+      LDAP_READONLY_USER_PASSWORD: "readonly_pass"
+      LDAP_TLS_VERIFY_CLIENT: "never"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+      - ./ldap/db:/var/lib/ldap
+      - ./ldap/config:/etc/ldap/slapd.d
+      - ./ldap/certs:/container/services/slapd/assets/certs
+  lam:
+    image: ldapaccountmanager/lam:latest
+    container_name: lam
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+    environment:
+      LDAP_DOMAIN: "lisz.top"
+      LDAP_BASE_DN: "dc=lisz,dc=top"
+      LDAP_USERS_DN: "ou=people,dc=lisz,dc=top"
+      LDAP_GROUPS_DN: "ou=groups,dc=lisz,dc=top"
+      LDAP_SERVER: "ldap://slapd:389"
+      LAM_PASSWORD: "lam_password"
+      VIRTUAL_HOST: "lam"
+      CERT_NAME: "ldap"
+    links:
+      - slapd
+  proxy:
+    image: jwilder/nginx-proxy:latest
+    container_name: proxy
+    restart: always
+    environment:
+      - DEFAULT_HOST=lam
+    ports:
+      - 6880:80
+      - 6843:443
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+      - ./proxy/certs:/etc/nginx/certs
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    links:
+      - slapd
+      - lam

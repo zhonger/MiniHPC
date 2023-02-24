@@ -1,0 +1,29 @@
+From ubuntu:jammy
+
+LABEL maintainer="zhonger zhonger@live.cn"
+
+# Install essential softwares
+RUN apt-get update \
+    && apt-get install -y vim iputils-ping net-tools htop less \
+    && apt-get install -y build-essential
+
+# Install munge & slurm
+RUN apt-get install -y munge slurm-wlm slurm-wlm-doc slurm-wlm-torque slurmdbd \
+    && mkdir /var/spool/slurm \
+    && chown -R slurm:slurm /var/spool/slurm \
+    && mkdir /var/run/slurm \
+    && chown -R slurm:slurm /var/run/slurm
+ADD conf/slurm.conf /etc/slurm/slurm.conf
+ADD conf/slurmdbd.conf /etc/slurm/slurmdbd.conf
+RUN chown -R slurm:slurm /etc/slurm/slurm.conf \
+    && chown -R slurm:slurm /etc/slurm/slurmdbd.conf \
+    && chmod 600 /etc/slurm/slurmdbd.conf
+
+# Clean apt-cache
+RUN apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+ADD entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
