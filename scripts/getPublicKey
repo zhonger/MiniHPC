@@ -1,0 +1,8 @@
+#!/bin/bash
+
+uri="ldap://slapd"
+binddn="cn=readonly,dc=lisz,dc=top"
+bindpw="readonly_pass"
+base="ou=people,dc=lisz,dc=top"
+uid=$1
+ldapsearch -LLL -H ${uri} -w "${bindpw}" -D "${binddn}" -b "${base}" "(&(objectClass=posixAccount)(uid=${uid}))" "sshPublicKey" | sed -ne '2,$p' | sed -e 's/sshPublicKey: //g' | sed -e 's/^ //g' | tr -d '\n'

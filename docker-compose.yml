@@ -2,25 +2,80 @@ version: '3.9'
 
 services:
   sake:
-    image: zhonger/minihpc-base
+    image: zhonger/minihpc:1.0.0
     container_name: sake
+    hostname: sake
     stdin_open: true
     tty: true
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
+      - ./conf/slurm.conf:/etc/slurm/slurm.conf
+      - ./data/slurm:/var/spool/slurm
+      - ./data/slurm-mail/spool:/var/spool/slurm-mail
+      - ./conf/slurm-mail.conf:/etc/slurm-mail/slurm-mail.conf
+      - ./conf/nslcd.conf:/etc/nslcd.conf
+      - ./data/ldap/certs:/usr/local/share/ca-certificates
+      - ./logs:/opt/logs
+      - ./root/data:/root/data
+      - ./users:/home
+    ports:
+      - "127.0.0.1:10822:22"
+      # - "6817:6817"
+    environment:
+      - ADMIN=true
+      - WORKNODE=false
+      - LDAP_ENABLE=true
+      - SSH_ENABLE=true
+    restart: always
+    depends_on:
+      - db
+      - slapd
+  w1:
+    image: zhonger/minihpc:1.0.0
+    container_name: w1
+    hostname: w1
+    stdin_open: true
+    tty: true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+      - ./conf/slurm.conf:/etc/slurm/slurm.conf
+      - ./conf/nslcd.conf:/etc/nslcd.conf
+      - ./data/ldap/certs:/usr/local/share/ca-certificates
       - ./root/data:/root/data
       - ./users:/home
     # ports:
-    #   - 6822:22
+      # - "6818:6818"
     environment:
-      - MYSQL_HOST=db
-      - MYSQL_USER=hpc
-      - MYSQL_PASSWORD=hpc
+      - ADMIN=false
+      - WORKNODE=true
+      - LDAP_ENABLE=true
     restart: always
-    hostname: sake
-    links:
-      - db
+    depends_on:
+      - slapd
+  w2:
+    image: zhonger/minihpc:1.0.0
+    container_name: w2
+    hostname: w2
+    stdin_open: true
+    tty: true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezome:ro
+      - ./conf/slurm.conf:/etc/slurm/slurm.conf
+      - ./conf/nslcd.conf:/etc/nslcd.conf
+      - ./data/ldap/certs:/usr/local/share/ca-certificates
+      - ./root/data:/root/data
+      - ./users:/home
+    # ports:
+      # - "6818:6818"
+    environment:
+      - ADMIN=false
+      - WORKNODE=true
+      - LDAP_ENABLE=true
+    restart: always
+    depends_on:
       - slapd
   db:
     image: mariadb:latest
@@ -30,22 +85,26 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
-      - ./db_init:/docker-entrypoint-initdb.d
+      - ./conf/db_init:/docker-entrypoint-initdb.d
+      - ./data/db:/var/lib/mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=19950710li
+      - MYSQL_ROOT_PASSWORD=root
       - MYSQL_USER=hpc
       - MYSQL_PASSWORD=hpc
     security_opt:
       - seccomp=unconfined
-    command: mysqld --innodb-buffer-pool-size=256M --innodb_log_file_size=64M --innodb_lock_wait_timeout=900
-  adminer:
-    image: adminer
-    restart: always
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezome:ro
-    ports:
-      - 6881:8080 
+    command: mariadbd --innodb_log_file_size=64M --innodb_lock_wait_timeout=900
+  # adminer:
+  #   image: adminer
+  #   container_name: adminer
+  #   restart: always
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
+  #     - /etc/timezone:/etc/timezome:ro
+  #   ports:
+  #     - "6881:8080"
+  #   depends_on:
+  #     - db
   slapd:
     image: osixia/openldap:latest
     container_name: slapd
@@ -54,49 +113,16 @@ services:
     environment:
       LDAP_ORGANISATION: "LEP"
       LDAP_DOMAIN: "lisz.top"
-      LDAP_ADMIN_PASSWORD: "19950710li"
+      LDAP_ADMIN_PASSWORD: "LEP123456"
       LDAP_READONLY_USER: "True"
       LDAP_READONLY_USER_USERNAME: "readonly"
       LDAP_READONLY_USER_PASSWORD: "readonly_pass"
-      LDAP_TLS_VERIFY_CLIENT: "never"
+      LDAP_TLS_VERIFY_CLIENT: "allow"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
-      - ./ldap/db:/var/lib/ldap
-      - ./ldap/config:/etc/ldap/slapd.d
-      - ./ldap/certs:/container/services/slapd/assets/certs
-  lam:
-    image: ldapaccountmanager/lam:latest
-    container_name: lam
-    restart: always
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezome:ro
-    environment:
-      LDAP_DOMAIN: "lisz.top"
-      LDAP_BASE_DN: "dc=lisz,dc=top"
-      LDAP_USERS_DN: "ou=people,dc=lisz,dc=top"
-      LDAP_GROUPS_DN: "ou=groups,dc=lisz,dc=top"
-      LDAP_SERVER: "ldap://slapd:389"
-      LAM_PASSWORD: "lam_password"
-      VIRTUAL_HOST: "lam"
-      CERT_NAME: "ldap"
-    links:
-      - slapd
-  proxy:
-    image: jwilder/nginx-proxy:latest
-    container_name: proxy
-    restart: always
-    environment:
-      - DEFAULT_HOST=lam
-    ports:
-      - 6880:80
-      - 6843:443
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezome:ro
-      - ./proxy/certs:/etc/nginx/certs
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-    links:
-      - slapd
-      - lam
+      - ./data/ldap/db:/var/lib/ldap
+      - ./data/ldap/config:/etc/ldap/slapd.d
+      - ./data/ldap/certs:/container/service/slapd/assets/certs
+    # ports:
+    #   - "127.0.0.1:6884:389"

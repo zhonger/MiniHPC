@@ -1,0 +1,8 @@
+#!/bin/bash
+
+echo ""
+figlet MiniHPC
+echo ""
+echo " * Welcome to MiniHPC (Your own mini high performance cluster)"
+echo " * For more details, please refer to https://github.com/zhonger/MiniHPC."
+echo ""
