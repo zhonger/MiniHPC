@@ -1,11 +1,11 @@
-From ubuntu:jammy
+FROM ubuntu:noble
 
 LABEL maintainer="zhonger zhonger@live.cn"
 
 # Install essential softwares
 RUN apt-get update \
-    && apt-get install -y vim iputils-ping net-tools htop less \
-    && apt-get install -y build-essential
+    && apt-get install -y vim iputils-ping net-tools htop less wget curl git\
+    && apt-get install -y build-essential locales-all zsh fish
 
 # Install munge & slurm
 RUN apt-get install -y munge slurm-wlm slurm-wlm-doc slurm-wlm-torque slurmdbd \
@@ -19,11 +19,24 @@ RUN chown -R slurm:slurm /etc/slurm/slurm.conf \
     && chown -R slurm:slurm /etc/slurm/slurmdbd.conf \
     && chmod 600 /etc/slurm/slurmdbd.conf
 
+# Install slurm-mail
+ARG SLURM_MAIL_URL=https://github.com/neilmunday/slurm-mail/releases/download
+ARG SLURM_MAIL_VERSION=4.22
+ARG SLURM_MAIL_SVERSION=4.22ub24
+RUN apt-get install -y cron logrotate python3 slurm-client python3-pkg-resources \
+    && wget $SLURM_MAIL_URL/v$SLURM_MAIL_VERSION/slurm-mail_$SLURM_MAIL_SVERSION-ubuntu1_all.deb \
+    && dpkg -i slurm-mail_$SLURM_MAIL_SVERSION-ubuntu1_all.deb \
+    && apt-get -f install -y \
+    && rm -rf /etc/cron.d/slurm-mail \
+    && rm slurm-mail_$SLURM_MAIL_SVERSION-ubuntu1_all.deb \
+    && chown -R slurm:slurm /var/spool/slurm-mail
+COPY cron.d/cron-slurm-mail /etc/cron.d/mail
+
 # Clean apt-cache
 RUN apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-ADD entrypoint.sh /entrypoint.sh
+ADD entrypoint.base.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
