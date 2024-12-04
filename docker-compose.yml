@@ -10,17 +10,18 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
-      - ./conf/slurm.conf:/etc/slurm/slurm.conf
+      - ./data/share/hosts:/etc/hosts:ro
+      - ./data/share/slurm.conf:/etc/slurm/slurm.conf
       - ./data/slurm:/var/spool/slurm
+      - ./data/share/slurm-mail.conf:/etc/slurm-mail/slurm-mail.conf
       - ./data/slurm-mail/spool:/var/spool/slurm-mail
-      - ./conf/slurm-mail.conf:/etc/slurm-mail/slurm-mail.conf
-      - ./conf/nslcd.conf:/etc/nslcd.conf
+      - ./data/share/nslcd.conf:/etc/nslcd.conf
       - ./data/ldap/certs:/usr/local/share/ca-certificates
-      - ./logs:/opt/logs
-      - ./root/data:/root/data
-      - ./users:/home
-    ports:
-      - "127.0.0.1:10822:22"
+      - ./data/logs:/opt/logs
+      - ./data/root/data:/root/data
+      - ./data/users:/home
+    # ports:
+    #   - "127.0.0.1:10822:22"
       # - "6817:6817"
     environment:
       - ADMIN=true
@@ -40,11 +41,12 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
-      - ./conf/slurm.conf:/etc/slurm/slurm.conf
-      - ./conf/nslcd.conf:/etc/nslcd.conf
+      - ./data/share/hosts:/etc/hosts:ro
+      - ./data/share/slurm.conf:/etc/slurm/slurm.conf
+      - ./data/share/nslcd.conf:/etc/nslcd.conf
       - ./data/ldap/certs:/usr/local/share/ca-certificates
-      - ./root/data:/root/data
-      - ./users:/home
+      - ./data/root/data:/root/data
+      - ./data/users:/home
     # ports:
       # - "6818:6818"
     environment:
@@ -63,11 +65,12 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
-      - ./conf/slurm.conf:/etc/slurm/slurm.conf
-      - ./conf/nslcd.conf:/etc/nslcd.conf
+      - ./data/share/hosts:/etc/hosts:ro
+      - ./data/share/slurm.conf:/etc/slurm/slurm.conf
+      - ./data/share/nslcd.conf:/etc/nslcd.conf
       - ./data/ldap/certs:/usr/local/share/ca-certificates
-      - ./root/data:/root/data
-      - ./users:/home
+      - ./data/root/data:/root/data
+      - ./data/users:/home
     # ports:
       # - "6818:6818"
     environment:
@@ -85,7 +88,8 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
-      - ./conf/db_init:/docker-entrypoint-initdb.d
+      - ./data/share/hosts:/etc/hosts:ro
+      - ./data/share/db_init:/docker-entrypoint-initdb.d
       - ./data/db:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=root
@@ -94,17 +98,6 @@ services:
     security_opt:
       - seccomp=unconfined
     command: mariadbd --innodb_log_file_size=64M --innodb_lock_wait_timeout=900
-  # adminer:
-  #   image: adminer
-  #   container_name: adminer
-  #   restart: always
-  #   volumes:
-  #     - /etc/localtime:/etc/localtime:ro
-  #     - /etc/timezone:/etc/timezome:ro
-  #   ports:
-  #     - "6881:8080"
-  #   depends_on:
-  #     - db
   slapd:
     image: osixia/openldap:latest
     container_name: slapd
@@ -121,6 +114,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezome:ro
+      - ./data/share/hosts:/etc/hosts:ro
       - ./data/ldap/db:/var/lib/ldap
       - ./data/ldap/config:/etc/ldap/slapd.d
       - ./data/ldap/certs:/container/service/slapd/assets/certs
